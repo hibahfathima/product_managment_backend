@@ -65,14 +65,21 @@ const getSubCategories = async (req, res) => {
 
 const addProduct = async (req, res) => {
     try {
-        const { name, variants, description, subCategoryId, images } = req.body;
+        const { name, variants, description, subCategoryId, categoryId } = req.body;
         const userId = req.user.id;
+
+        // Parse variants if they are sent as a string (FormData case)
+        const parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+
+        // Get file paths from multer
+        const images = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
 
         const newProduct = new Products({
             name,
-            variants,
+            variants: parsedVariants,
             description,
             subCategoryId,
+            categoryId,
             userId,
             images,
         });
@@ -84,13 +91,92 @@ const addProduct = async (req, res) => {
     }
 };
 
+const getProductById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await Products.findById(id)
+            .populate("categoryId", "name")
+            .populate("subCategoryId", "name");
+
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found" });
+        }
+
+        res.status(200).json({ success: true, data: product });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 
 const getProducts = async (req, res) => {
     try {
-        const { subCategoryId } = req.params;
+        const { categoryId, subCategoryId, search, page = 1, limit = 6 } = req.query;
         const userId = req.user.id;
-        const products = await Products.find({ subCategoryId, userId });
-        res.status(200).json({ success: true, data: products });
+
+        const query = { userId };
+
+        if (search) {
+            query.name = { $regex: search, $options: "i" };
+        }
+
+        if (subCategoryId) {
+            query.subCategoryId = subCategoryId;
+        } else if (categoryId) {
+            query.categoryId = categoryId;
+        }
+
+        const skip = (page - 1) * limit;
+        const products = await Products.find(query)
+            .skip(skip)
+            .limit(Number(limit))
+            .sort({ createdAt: -1 });
+
+        const total = await Products.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            data: products,
+            total,
+            page: Number(page),
+            limit: Number(limit)
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const updateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, variants, description, subCategoryId, categoryId, existingImages } = req.body;
+        const userId = req.user.id;
+
+        const product = await Products.findOne({ _id: id, userId });
+        if (!product) {
+            return res.status(404).json({ success: false, message: "Product not found or unauthorized" });
+        }
+
+        // Parse variants and existingImages if they are sent as strings
+        const parsedVariants = typeof variants === 'string' ? JSON.parse(variants) : variants;
+        const parsedExistingImages = typeof existingImages === 'string' ? JSON.parse(existingImages) : (existingImages || []);
+
+        // Get new file paths from multer
+        const newImages = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+
+        // Combine existing (kept) images with new ones
+        const images = [...parsedExistingImages, ...newImages];
+
+        product.name = name || product.name;
+        product.variants = parsedVariants || product.variants;
+        product.description = description || product.description;
+        product.subCategoryId = subCategoryId || product.subCategoryId;
+        product.categoryId = categoryId || product.categoryId;
+        product.images = images;
+
+        await product.save();
+
+        res.status(200).json({ success: true, message: "Product updated successfully", data: product });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -104,4 +190,6 @@ module.exports = {
     getSubCategories,
     addProduct,
     getProducts,
+    getProductById,
+    updateProduct,
 };

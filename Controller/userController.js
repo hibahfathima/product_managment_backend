@@ -58,8 +58,8 @@ const loginController = async (req, res) => {
 
                 res.cookie("token", token, {
                     httpOnly: true,
-                    secure: true,
-                    sameSite: "none",
+                    secure: process.env.NODE_ENV === "production", // Secure only in production
+                    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
                     maxAge: 24 * 60 * 60 * 1000
                 });
 
@@ -117,8 +117,8 @@ const logoutController = async (req, res) => {
     try {
         res.clearCookie("token", {
             httpOnly: true,
-            secure: true,
-            sameSite: "none"
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
         });
         return res.status(200).json({
             success: true,

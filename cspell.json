@@ -1,0 +1,23 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "bcryptjs",
+        "jsonwebtoken",
+        "mongoose",
+        "nodemon",
+        "nodemailer",
+        "multer",
+        "cors",
+        "dotenv",
+        "subcategory",
+        "subCategoryId",
+        "categoryId",
+        "wishlist",
+        "cspell"
+    ],
+    "ignorePaths": [
+        "node_modules/**",
+        "package-lock.json"
+    ]
+}

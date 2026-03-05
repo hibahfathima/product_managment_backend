@@ -9,7 +9,7 @@ const productSchema = new mongoose.Schema(
         },
         variants: [
             {
-                ram: { type: String, required: true },
+                type: { type: String, required: true },
                 price: { type: Number, required: true },
                 qty: { type: Number, required: true },
             }
@@ -21,6 +21,11 @@ const productSchema = new mongoose.Schema(
         subCategoryId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "subcategories",
+            required: true,
+        },
+        categoryId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "categories",
             required: true,
         },
         userId: {
