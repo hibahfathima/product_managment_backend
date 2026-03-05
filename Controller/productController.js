@@ -9,8 +9,12 @@ const addCategory = async (req, res) => {
         const { name } = req.body;
         const userId = req.user.id;
 
-        // Check for existing category FOR THIS USER
-        const existingCategory = await Categories.findOne({ name, userId });
+        // Case-insensitive check for existing category FOR THIS USER
+        const existingCategory = await Categories.findOne({
+            userId,
+            name: { $regex: new RegExp(`^${name}$`, "i") }
+        });
+
         if (existingCategory) {
             return res.status(400).json({ success: false, message: "Category already exists in your account" });
         }
@@ -20,6 +24,10 @@ const addCategory = async (req, res) => {
 
         res.status(201).json({ success: true, message: "Category added successfully", data: newCategory });
     } catch (error) {
+        // Catch MongoDB duplicate key error (E11000)
+        if (error.code === 11000) {
+            return res.status(400).json({ success: false, message: "Category already exists" });
+        }
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -41,11 +49,25 @@ const addSubCategory = async (req, res) => {
         const { name, categoryId } = req.body;
         const userId = req.user.id;
 
+        // Case-insensitive check for existing sub-category in this category FOR THIS USER
+        const existingSub = await SubCategories.findOne({
+            userId,
+            categoryId,
+            name: { $regex: new RegExp(`^${name}$`, "i") }
+        });
+
+        if (existingSub) {
+            return res.status(400).json({ success: false, message: "Sub-Category already exists in this category" });
+        }
+
         const newSubCategory = new SubCategories({ name, categoryId, userId });
         await newSubCategory.save();
 
         res.status(201).json({ success: true, message: "Sub-Category added successfully", data: newSubCategory });
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(400).json({ success: false, message: "Sub-Category already exists" });
+        }
         res.status(500).json({ success: false, message: error.message });
     }
 };
